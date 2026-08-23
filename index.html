@@ -468,6 +468,7 @@
         }
         .auth-card .btn { width: 100%; margin-bottom: 0.6rem; padding: 0.75rem; }
         .auth-divider { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; color: var(--text-muted); font-size: 0.75rem; }
+        .guest-mode-hint { font-size: 0.7rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1rem; text-align: left; }
         .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
         .auth-toggle-link { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.75rem; cursor: pointer; }
         .auth-toggle-link span { color: var(--accent); text-decoration: underline; }
@@ -567,6 +568,9 @@
             <div class="auth-divider">or</div>
             <button class="btn btn-secondary" id="authGoogleBtn">🔵 Continue with Google</button>
 
+            <button class="btn btn-secondary" id="guestModeBtn" style="margin-top: 0.6rem;">👤 Continue as Guest</button>
+            <p class="guest-mode-hint">No account, no cloud sync - your Vault stays only on this device/browser. Use <strong>Export Data</strong> in Settings regularly to back it up, since clearing your browser data or switching devices will lose it for good.</p>
+
             <p class="auth-toggle-link" id="authToggleLink">Don't have an account? <span>Sign up</span></p>
             <p class="auth-status" id="authStatus"></p>
         </div>
@@ -581,7 +585,6 @@
             <div class="controls">
                 <button class="btn btn-secondary" id="shareBtn">🔗 Share</button>
                 <button class="btn btn-secondary" id="settingsBtn">Settings</button>
-                <button class="btn btn-secondary" id="apiBtn">API Keys</button>
             </div>
         </div>
     </header>
@@ -808,6 +811,7 @@
 
             <!-- Export / Import / Clear Section -->
             <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">Data Management</h4>
+            <p class="share-hint" id="guestExportReminder" style="display: none; margin-bottom: 0.75rem;">You're in Guest Mode - nothing is backed up automatically. Export your data regularly, since clearing your browser, switching devices, or losing local storage will lose it for good.</p>
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
                 <button class="btn btn-secondary" style="flex: 1;" id="exportDataBtn">📥 Export Data</button>
                 <button class="btn btn-secondary" style="flex: 1;" id="importDataBtn">📤 Import Data</button>
@@ -864,6 +868,8 @@
 
             <!-- My Code Pane -->
             <div id="shareMinePane">
+                <p class="share-hint" id="shareGuestNotice" style="display: none;">Sharing needs an account (so your code can be looked up from any device). <span id="shareGuestSignInLink" style="color: var(--accent); cursor: pointer; font-weight: 700;">Sign in or create one</span> - your local data will carry over.</p>
+
                 <label style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; cursor: pointer; margin-bottom: 0.5rem;">
                     <input type="checkbox" id="shareEnabledToggle"> Make my Vault shareable
                 </label>
@@ -927,21 +933,7 @@
         </div>
     </div>
 
-    <!-- Modals for API/Lists -->
-    <div class="modal" id="apiModal">
-        <div class="modal-basic-content">
-            <h3>API Keys Settings</h3>
-            <label style="font-size: 0.8rem; color: var(--text-muted);">RAWG.io API Key (Video Games):</label>
-            <input type="text" id="rawgKeyInput" placeholder="Enter RAWG API Key">
-            <label style="font-size: 0.8rem; color: var(--text-muted);">TMDB API Key (Movies, TV Shows & Anime):</label>
-            <input type="text" id="tmdbKeyInput" placeholder="Enter TMDB API Key">
-            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                <button class="btn btn-secondary" id="closeApiModalBtn">Cancel</button>
-                <button class="btn" id="saveKeysBtn">Save Keys</button>
-            </div>
-        </div>
-    </div>
-
+    <!-- Modals for Lists -->
     <div class="modal" id="listModal">
         <div class="modal-basic-content">
             <h3>Create Custom List</h3>
@@ -1099,8 +1091,11 @@
         let activeTab = 'games';
         let isListView = false;
 
-        let rawgApiKey = localStorage.getItem('vault_rawg_key') || '';
-        let tmdbApiKey = localStorage.getItem('vault_tmdb_key') || '';
+        // Shared RAWG/TMDB keys baked in for every visitor, so nobody needs their own
+        // API accounts or a Settings screen to manage keys - search & recommendations
+        // just work out of the box.
+        const rawgApiKey = 'b7f0077bbbc74e859f9591d320419641';
+        const tmdbApiKey = '99a593469dd68400e3d31308ef6b07ec';
         let initialSearchLimit = parseInt(localStorage.getItem('vault_search_limit')) || 8;
 
         // Share-by-code state
@@ -1782,7 +1777,7 @@
             gameRes.innerHTML = '';
 
             if (allGameResults.length === 0) {
-                gameRes.innerHTML = rawgApiKey ? '<div class="empty-state">No matching games found.</div>' : '<div class="empty-state">Please set RAWG API key in Settings.</div>';
+                gameRes.innerHTML = rawgApiKey ? '<div class="empty-state">No matching games found.</div>' : '<div class="empty-state">Game search is temporarily unavailable.</div>';
                 loadMoreBtn.style.display = 'none';
                 return;
             }
@@ -1808,7 +1803,7 @@
             else if (mediaFilterType === 'show') filteredMedia = allMediaResults.filter(m => m.category === 'show');
 
             if (filteredMedia.length === 0) {
-                mediaRes.innerHTML = tmdbApiKey ? '<div class="empty-state">No matching titles found.</div>' : '<div class="empty-state">Please set TMDB API key in Settings.</div>';
+                mediaRes.innerHTML = tmdbApiKey ? '<div class="empty-state">No matching titles found.</div>' : '<div class="empty-state">Movie/TV search is temporarily unavailable.</div>';
                 loadMoreBtn.style.display = 'none';
                 return;
             }
@@ -2290,6 +2285,10 @@
         }
 
         async function setShareEnabled(enabled) {
+            if (!currentUser) {
+                document.getElementById('shareEnabledToggle').checked = false;
+                return;
+            }
             shareEnabled = enabled;
             if (enabled && !shareCode) {
                 shareCode = await ensureUniqueShareCode();
@@ -2305,8 +2304,12 @@
         }
 
         function renderShareModal() {
-            document.getElementById('shareEnabledToggle').checked = shareEnabled;
-            document.getElementById('shareCodeBox').style.display = shareEnabled ? 'block' : 'none';
+            const toggle = document.getElementById('shareEnabledToggle');
+            const guestNotice = document.getElementById('shareGuestNotice');
+            toggle.checked = shareEnabled;
+            toggle.disabled = !currentUser;
+            guestNotice.style.display = currentUser ? 'none' : 'block';
+            document.getElementById('shareCodeBox').style.display = (shareEnabled && currentUser) ? 'block' : 'none';
             document.getElementById('shareDisplayNameInput').value = shareDisplayName;
             document.getElementById('shareCodeText').innerText = shareCode || '------';
         }
@@ -2323,6 +2326,11 @@
             switchShareTab('mine');
             renderShareModal();
             document.getElementById('shareModal').classList.add('active');
+        });
+        document.getElementById('shareGuestSignInLink').addEventListener('click', () => {
+            document.getElementById('shareModal').classList.remove('active');
+            isGuestMode = false;
+            document.getElementById('authGate').classList.remove('hidden');
         });
         document.getElementById('closeShareModalBtn').addEventListener('click', () => document.getElementById('shareModal').classList.remove('active'));
         document.getElementById('shareTabMineBtn').addEventListener('click', () => switchShareTab('mine'));
@@ -2530,10 +2538,6 @@
                 collections: collections,
                 mediaLibrary: mediaLibrary,
                 activityLogs: activityLogs,
-                apiKeys: {
-                    rawg: rawgApiKey,
-                    tmdb: tmdbApiKey
-                },
                 theme: localStorage.getItem('vault_theme'),
                 customTheme: JSON.parse(localStorage.getItem('vault_custom_theme') || '{}'),
                 searchLimit: initialSearchLimit,
@@ -2565,12 +2569,6 @@
                         collections = imported.collections;
                         mediaLibrary = imported.mediaLibrary;
                         if (imported.activityLogs) activityLogs = imported.activityLogs;
-                        if (imported.apiKeys) {
-                            rawgApiKey = imported.apiKeys.rawg || '';
-                            tmdbApiKey = imported.apiKeys.tmdb || '';
-                            localStorage.setItem('vault_rawg_key', rawgApiKey);
-                            localStorage.setItem('vault_tmdb_key', tmdbApiKey);
-                        }
                         if (imported.searchLimit) {
                             initialSearchLimit = parseInt(imported.searchLimit);
                             localStorage.setItem('vault_search_limit', initialSearchLimit);
@@ -2701,18 +2699,6 @@
         });
 
         document.getElementById('closeSearchBtn').addEventListener('click', () => document.getElementById('searchResultsWrapper').classList.remove('active'));
-        
-        document.getElementById('apiBtn').addEventListener('click', () => {
-            document.getElementById('rawgKeyInput').value = rawgApiKey; document.getElementById('tmdbKeyInput').value = tmdbApiKey;
-            document.getElementById('apiModal').classList.add('active');
-        });
-        document.getElementById('closeApiModalBtn').addEventListener('click', () => document.getElementById('apiModal').classList.remove('active'));
-        document.getElementById('saveKeysBtn').addEventListener('click', () => {
-            rawgApiKey = document.getElementById('rawgKeyInput').value.trim(); tmdbApiKey = document.getElementById('tmdbKeyInput').value.trim();
-            localStorage.setItem('vault_rawg_key', rawgApiKey); localStorage.setItem('vault_tmdb_key', tmdbApiKey);
-            queueCloudSync();
-            document.getElementById('apiModal').classList.remove('active');
-        });
 
         document.getElementById('newListBtn').addEventListener('click', () => {
             document.getElementById('listNameInput').value = ''; document.getElementById('listModal').classList.add('active');
@@ -2795,6 +2781,7 @@ const firebaseConfig = {
         });
 
         let currentUser = null;
+        let isGuestMode = false;
         let isLoadingCloudState = false;
         let cloudSyncTimer = null;
         let authMode = 'signin';
@@ -2811,8 +2798,6 @@ const firebaseConfig = {
                 mediaLibrary,
                 collections,
                 activityLogs,
-                rawgApiKey,
-                tmdbApiKey,
                 initialSearchLimit,
                 fastDragEnabled,
                 soundEnabled,
@@ -2853,8 +2838,6 @@ const firebaseConfig = {
                     mediaLibrary = data.mediaLibrary || [];
                     collections = data.collections || DEFAULT_COLUMNS;
                     activityLogs = data.activityLogs || [];
-                    rawgApiKey = data.rawgApiKey || '';
-                    tmdbApiKey = data.tmdbApiKey || '';
                     initialSearchLimit = data.initialSearchLimit || 8;
                     fastDragEnabled = !!data.fastDragEnabled;
                     soundEnabled = data.soundEnabled !== false;
@@ -2866,8 +2849,6 @@ const firebaseConfig = {
                     localStorage.setItem('vault_media_library_v3', JSON.stringify(mediaLibrary));
                     localStorage.setItem('vault_collections_config', JSON.stringify(collections));
                     localStorage.setItem('vault_activity_logs', JSON.stringify(activityLogs));
-                    localStorage.setItem('vault_rawg_key', rawgApiKey);
-                    localStorage.setItem('vault_tmdb_key', tmdbApiKey);
                     localStorage.setItem('vault_search_limit', initialSearchLimit);
                     localStorage.setItem('vault_fast_drag', fastDragEnabled);
                     localStorage.setItem('vault_sound', soundEnabled);
@@ -2969,11 +2950,50 @@ const firebaseConfig = {
             }
         });
 
-        document.getElementById('signOutBtn').addEventListener('click', () => auth.signOut());
+        function updateAccountUI() {
+            const emailDisplay = document.getElementById('accountEmailDisplay');
+            const signOutBtn = document.getElementById('signOutBtn');
+            const syncStatus = document.getElementById('cloudSyncStatus');
+            const guestReminder = document.getElementById('guestExportReminder');
+            if (currentUser) {
+                emailDisplay.innerText = currentUser.email || 'Signed in';
+                signOutBtn.innerText = 'Sign Out';
+                if (guestReminder) guestReminder.style.display = 'none';
+            } else if (isGuestMode) {
+                emailDisplay.innerText = 'Guest Mode - not signed in';
+                signOutBtn.innerText = 'Sign In / Create Account';
+                if (syncStatus) syncStatus.innerText = 'Not synced to the cloud - use Export Data below to back this up, or sign in to sync it automatically.';
+                if (guestReminder) guestReminder.style.display = 'block';
+            } else {
+                emailDisplay.innerText = 'Not signed in';
+                signOutBtn.innerText = 'Sign Out';
+                if (guestReminder) guestReminder.style.display = 'none';
+            }
+        }
+
+        document.getElementById('signOutBtn').addEventListener('click', () => {
+            if (currentUser) {
+                auth.signOut();
+            } else {
+                // Leaving Guest Mode - their local data stays on this device, just re-show the sign-in gate.
+                isGuestMode = false;
+                document.getElementById('settingsModal').classList.remove('active');
+                document.getElementById('authGate').classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('guestModeBtn').addEventListener('click', () => {
+            isGuestMode = true;
+            document.getElementById('authError').innerText = '';
+            document.getElementById('authGate').classList.add('hidden');
+            updateAccountUI();
+            renderBoard();
+        });
 
         auth.onAuthStateChanged(async (user) => {
             const gate = document.getElementById('authGate');
             if (user) {
+                isGuestMode = false;
                 currentUser = user;
                 document.getElementById('authStatus').innerText = 'Loading your Vault...';
                 try {
@@ -2983,15 +3003,20 @@ const firebaseConfig = {
                     const statusEl = document.getElementById('cloudSyncStatus');
                     if (statusEl) statusEl.innerText = 'Could not load cloud data - using local copy.';
                 }
-                document.getElementById('accountEmailDisplay').innerText = user.email || 'Signed in';
                 document.getElementById('authStatus').innerText = '';
+                updateAccountUI();
                 gate.classList.add('hidden');
             } else {
                 currentUser = null;
                 document.getElementById('authEmailInput').value = '';
                 document.getElementById('authPasswordInput').value = '';
                 document.getElementById('authStatus').innerText = '';
-                gate.classList.remove('hidden');
+                updateAccountUI();
+                if (isGuestMode) {
+                    gate.classList.add('hidden');
+                } else {
+                    gate.classList.remove('hidden');
+                }
             }
         });
 
