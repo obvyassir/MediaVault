@@ -1105,6 +1105,19 @@
         let publicProfileActiveTab = 'games';
         let currentPublicProfileData = null;
 
+        // Cloud sync state - declared early (before theme/init code runs) so nothing
+        // that fires during initial page load can hit these while they're still in
+        // their temporal dead zone. This previously caused a crash: applyTheme() runs
+        // synchronously on load and calls queueCloudSync(), which read `currentUser`
+        // before its `let` declaration had executed, throwing a ReferenceError and
+        // silently killing the rest of the script (including every auth button's
+        // event listener) for the remainder of that page load.
+        let currentUser = null;
+        let isGuestMode = false;
+        let isLoadingCloudState = false;
+        let cloudSyncTimer = null;
+        let authMode = 'signin';
+
         // Search State for Load More & Filtering
         let allGameResults = [];
         let displayedGameCount = 0;
@@ -2779,12 +2792,6 @@ const firebaseConfig = {
                     : "Something went wrong signing in - your browser's privacy/shield settings for this site may be blocking it.";
             }
         });
-
-        let currentUser = null;
-        let isGuestMode = false;
-        let isLoadingCloudState = false;
-        let cloudSyncTimer = null;
-        let authMode = 'signin';
 
         function userDocRef(uid) {
             return db.collection('vaults').doc(uid);
