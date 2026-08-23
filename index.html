@@ -503,6 +503,50 @@
             pointer-events: none;
             user-select: none;
         }
+
+        /* --- Share Modal --- */
+        .share-tab-switch { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; }
+        .share-tab {
+            flex: 1; padding: 0.65rem; background: none; border: none; border-bottom: 2px solid transparent;
+            color: var(--text-muted); font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;
+        }
+        .share-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .share-code-display {
+            font-family: "SF Mono", "Consolas", monospace; font-size: 1.75rem; font-weight: 800; letter-spacing: 6px;
+            text-align: center; background: var(--bg-dark); border: 1px dashed var(--accent); border-radius: 8px;
+            padding: 1rem; margin: 0.4rem 0 0.85rem; color: var(--accent); user-select: all;
+        }
+        .share-hint { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin-top: 0.75rem; }
+        .share-error-text { font-size: 0.8rem; color: #ef4444; margin-top: 0.5rem; min-height: 1em; }
+
+        /* --- Public (Shared) Profile View --- */
+        #publicProfileView {
+            display: none; position: fixed; inset: 0; background: var(--bg-dark); z-index: 6000;
+            overflow-y: auto; animation: fadeIn 0.25s ease;
+        }
+        #publicProfileView.active { display: block; }
+        .public-profile-header {
+            background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 1rem 2rem;
+            position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between;
+            align-items: center; flex-wrap: wrap; gap: 1rem; backdrop-filter: blur(12px);
+        }
+        .public-profile-identity { display: flex; align-items: center; gap: 0.85rem; }
+        .public-profile-avatar {
+            width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--accent), #c084fc);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 1.15rem; color: #fff;
+        }
+        .public-profile-name { font-weight: 700; font-size: 1.05rem; line-height: 1.2; }
+        .public-profile-sub { font-size: 0.75rem; color: var(--text-muted); }
+        .public-profile-readonly-tag {
+            font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--accent); background: var(--accent-glow); border: 1px solid var(--accent);
+            border-radius: 999px; padding: 2px 8px; margin-left: 0.5rem;
+        }
+        .public-profile-main { padding: 2rem; max-width: 1700px; margin: 0 auto; }
+        #publicProfileView .card { cursor: default; }
+        #publicProfileView .card:hover { transform: none; box-shadow: none; border-color: var(--border); }
     </style>
 </head>
 <body>
@@ -535,6 +579,7 @@
                 <input type="text" id="searchInput" class="search-input" placeholder="Search..." autocomplete="off">
             </div>
             <div class="controls">
+                <button class="btn btn-secondary" id="shareBtn">🔗 Share</button>
                 <button class="btn btn-secondary" id="settingsBtn">Settings</button>
                 <button class="btn btn-secondary" id="apiBtn">API Keys</button>
             </div>
@@ -807,6 +852,81 @@
         </div>
     </div>
 
+    <!-- Share Profile Modal -->
+    <div class="modal" id="shareModal">
+        <div class="modal-basic-content" style="max-width: 480px;">
+            <h3 style="margin-bottom: 1rem;">🔗 Share Your Vault</h3>
+
+            <div class="share-tab-switch">
+                <button class="share-tab active" id="shareTabMineBtn">My Code</button>
+                <button class="share-tab" id="shareTabViewBtn">View a Profile</button>
+            </div>
+
+            <!-- My Code Pane -->
+            <div id="shareMinePane">
+                <label style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; cursor: pointer; margin-bottom: 0.5rem;">
+                    <input type="checkbox" id="shareEnabledToggle"> Make my Vault shareable
+                </label>
+
+                <div id="shareCodeBox" style="display: none;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Display Name (shown to viewers)</label>
+                    <input type="text" id="shareDisplayNameInput" placeholder="e.g. Alex's Vault" maxlength="40">
+
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Your Share Code</label>
+                    <div class="share-code-display" id="shareCodeText">------</div>
+
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary" style="flex: 1;" id="copyShareCodeBtn">📋 Copy Code</button>
+                        <button class="btn btn-secondary" style="flex: 1;" id="copyShareLinkBtn">🔗 Copy Link</button>
+                    </div>
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem;" id="regenerateShareCodeBtn">🔄 Generate New Code</button>
+
+                    <p class="share-hint">Anyone with this code or link can view a read-only copy of your lists, ratings, and stats. They can't edit, delete, or add anything. Turn sharing off any time to hide your Vault again.</p>
+                </div>
+            </div>
+
+            <!-- View a Profile Pane -->
+            <div id="shareViewPane" style="display: none;">
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Enter a Vault Code</label>
+                <input type="text" id="viewCodeInput" placeholder="e.g. K7X9QP" maxlength="8" style="text-transform: uppercase; letter-spacing: 2px;">
+                <button class="btn" style="width: 100%;" id="viewProfileBtn">View Profile</button>
+                <p class="share-error-text" id="shareViewError"></p>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                <button class="btn" id="closeShareModalBtn">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Public (Read-Only) Shared Profile Page -->
+    <div id="publicProfileView">
+        <div class="public-profile-header">
+            <div class="public-profile-identity">
+                <div class="public-profile-avatar" id="publicProfileAvatar">?</div>
+                <div>
+                    <div class="public-profile-name">
+                        <span id="publicProfileNameText">Vault</span>
+                        <span class="public-profile-readonly-tag">Read Only</span>
+                    </div>
+                    <div class="public-profile-sub" id="publicProfileCodeText">Code: ------</div>
+                </div>
+            </div>
+            <button class="btn btn-secondary" id="exitPublicProfileBtn">✖ Back to My Vault</button>
+        </div>
+
+        <div class="public-profile-main">
+            <div class="stats-grid" id="publicStatsGrid" style="margin-bottom: 2rem;"></div>
+
+            <div class="collection-switch" id="publicCollectionSwitch">
+                <button class="collection-tab active" data-ptab="games">🎮 Video Games</button>
+                <button class="collection-tab" data-ptab="media">🎬 Movies & Shows</button>
+            </div>
+
+            <div class="columns-container" id="publicColumnsContainer"></div>
+        </div>
+    </div>
+
     <!-- Modals for API/Lists -->
     <div class="modal" id="apiModal">
         <div class="modal-basic-content">
@@ -982,6 +1102,13 @@
         let rawgApiKey = localStorage.getItem('vault_rawg_key') || '';
         let tmdbApiKey = localStorage.getItem('vault_tmdb_key') || '';
         let initialSearchLimit = parseInt(localStorage.getItem('vault_search_limit')) || 8;
+
+        // Share-by-code state
+        let shareCode = localStorage.getItem('vault_share_code') || '';
+        let shareEnabled = localStorage.getItem('vault_share_enabled') === 'true';
+        let shareDisplayName = localStorage.getItem('vault_share_display_name') || '';
+        let publicProfileActiveTab = 'games';
+        let currentPublicProfileData = null;
 
         // Search State for Load More & Filtering
         let allGameResults = [];
@@ -2108,6 +2235,293 @@
             document.getElementById('statTopMediaGenre').innerText = getTopKey(mediaGenreCounts);
         }
 
+        // ============================================================
+        // SHARE-BY-CODE: publish a read-only snapshot of this Vault to
+        // a public Firestore doc keyed by a short human-typeable code,
+        // and let anyone look up another Vault by entering that code
+        // (or by opening a link with ?code=XXXX in it).
+        // ============================================================
+
+        const SHARE_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L to avoid mix-ups
+
+        function generateRandomShareCode(len = 6) {
+            let out = '';
+            for (let i = 0; i < len; i++) out += SHARE_CODE_CHARS[Math.floor(Math.random() * SHARE_CODE_CHARS.length)];
+            return out;
+        }
+
+        async function ensureUniqueShareCode() {
+            for (let attempt = 0; attempt < 8; attempt++) {
+                const candidate = generateRandomShareCode(attempt < 5 ? 6 : 8);
+                try {
+                    const doc = await db.collection('publicProfiles').doc(candidate).get();
+                    if (!doc.exists) return candidate;
+                } catch (e) {
+                    console.error('Could not check share code availability:', e);
+                    return generateRandomShareCode(8);
+                }
+            }
+            return generateRandomShareCode(9);
+        }
+
+        function buildPublicProfilePayload() {
+            return {
+                uid: currentUser ? currentUser.uid : null,
+                displayName: (shareDisplayName || '').trim() || 'A Vault Curator',
+                mediaLibrary,
+                collections,
+                updatedAt: Date.now()
+            };
+        }
+
+        async function pushPublicProfile() {
+            if (!currentUser || !shareEnabled || !shareCode) return;
+            try {
+                await db.collection('publicProfiles').doc(shareCode).set(buildPublicProfilePayload());
+            } catch (e) {
+                console.error('Failed to sync public profile:', e);
+            }
+        }
+
+        function persistShareStateLocally() {
+            localStorage.setItem('vault_share_code', shareCode);
+            localStorage.setItem('vault_share_enabled', shareEnabled);
+            localStorage.setItem('vault_share_display_name', shareDisplayName);
+        }
+
+        async function setShareEnabled(enabled) {
+            shareEnabled = enabled;
+            if (enabled && !shareCode) {
+                shareCode = await ensureUniqueShareCode();
+            }
+            if (enabled) {
+                await pushPublicProfile();
+            } else if (shareCode) {
+                try { await db.collection('publicProfiles').doc(shareCode).delete(); } catch (e) { console.error(e); }
+            }
+            persistShareStateLocally();
+            queueCloudSync();
+            renderShareModal();
+        }
+
+        function renderShareModal() {
+            document.getElementById('shareEnabledToggle').checked = shareEnabled;
+            document.getElementById('shareCodeBox').style.display = shareEnabled ? 'block' : 'none';
+            document.getElementById('shareDisplayNameInput').value = shareDisplayName;
+            document.getElementById('shareCodeText').innerText = shareCode || '------';
+        }
+
+        function switchShareTab(tab) {
+            document.getElementById('shareTabMineBtn').classList.toggle('active', tab === 'mine');
+            document.getElementById('shareTabViewBtn').classList.toggle('active', tab === 'view');
+            document.getElementById('shareMinePane').style.display = tab === 'mine' ? 'block' : 'none';
+            document.getElementById('shareViewPane').style.display = tab === 'view' ? 'block' : 'none';
+            document.getElementById('shareViewError').innerText = '';
+        }
+
+        document.getElementById('shareBtn').addEventListener('click', () => {
+            switchShareTab('mine');
+            renderShareModal();
+            document.getElementById('shareModal').classList.add('active');
+        });
+        document.getElementById('closeShareModalBtn').addEventListener('click', () => document.getElementById('shareModal').classList.remove('active'));
+        document.getElementById('shareTabMineBtn').addEventListener('click', () => switchShareTab('mine'));
+        document.getElementById('shareTabViewBtn').addEventListener('click', () => switchShareTab('view'));
+
+        document.getElementById('shareEnabledToggle').addEventListener('change', (e) => setShareEnabled(e.target.checked));
+
+        document.getElementById('shareDisplayNameInput').addEventListener('input', (e) => { shareDisplayName = e.target.value; });
+        document.getElementById('shareDisplayNameInput').addEventListener('change', async () => {
+            persistShareStateLocally();
+            await pushPublicProfile();
+            queueCloudSync();
+        });
+
+        document.getElementById('regenerateShareCodeBtn').addEventListener('click', async () => {
+            const ok = await showConfirm('Generate a New Code?', 'Your old share code and link will stop working immediately. Anyone using them will lose access to your Vault.');
+            if (!ok) return;
+            const oldCode = shareCode;
+            shareCode = await ensureUniqueShareCode();
+            await pushPublicProfile();
+            if (oldCode) { try { await db.collection('publicProfiles').doc(oldCode).delete(); } catch (e) { console.error(e); } }
+            persistShareStateLocally();
+            queueCloudSync();
+            renderShareModal();
+        });
+
+        document.getElementById('copyShareCodeBtn').addEventListener('click', () => {
+            if (!shareCode) return;
+            navigator.clipboard.writeText(shareCode).catch(() => {});
+            const btn = document.getElementById('copyShareCodeBtn');
+            const original = btn.innerText;
+            btn.innerText = '✅ Copied!';
+            setTimeout(() => btn.innerText = original, 1500);
+        });
+
+        document.getElementById('copyShareLinkBtn').addEventListener('click', () => {
+            if (!shareCode) return;
+            const link = `${location.origin}${location.pathname}?code=${shareCode}`;
+            navigator.clipboard.writeText(link).catch(() => {});
+            const btn = document.getElementById('copyShareLinkBtn');
+            const original = btn.innerText;
+            btn.innerText = '✅ Copied!';
+            setTimeout(() => btn.innerText = original, 1500);
+        });
+
+        document.getElementById('viewProfileBtn').addEventListener('click', () => {
+            const code = document.getElementById('viewCodeInput').value.trim().toUpperCase();
+            if (!code) return;
+            openPublicProfile(code);
+        });
+        document.getElementById('viewCodeInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('viewProfileBtn').click();
+        });
+
+        async function openPublicProfile(code) {
+            const errorEl = document.getElementById('shareViewError');
+            const btn = document.getElementById('viewProfileBtn');
+            errorEl.innerText = '';
+            btn.disabled = true;
+            const originalText = btn.innerText;
+            btn.innerText = 'Looking that up...';
+            try {
+                const doc = await db.collection('publicProfiles').doc(code).get();
+                if (!doc.exists) {
+                    errorEl.innerText = 'No shared Vault found with that code.';
+                    return;
+                }
+                document.getElementById('shareModal').classList.remove('active');
+                renderPublicProfile(code, doc.data());
+            } catch (e) {
+                console.error('Failed to load shared profile:', e);
+                errorEl.innerText = 'Could not load that Vault right now - try again.';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        }
+
+        function renderPublicProfile(code, data) {
+            currentPublicProfileData = data;
+            publicProfileActiveTab = 'games';
+
+            const name = (data.displayName || 'A Vault Curator').trim() || 'A Vault Curator';
+            document.getElementById('publicProfileNameText').innerText = name;
+            document.getElementById('publicProfileAvatar').innerText = name.charAt(0).toUpperCase() || '?';
+            document.getElementById('publicProfileCodeText').innerText = 'Code: ' + code;
+
+            document.querySelectorAll('#publicCollectionSwitch .collection-tab').forEach(t => t.classList.toggle('active', t.dataset.ptab === 'games'));
+
+            renderPublicStats(data.mediaLibrary || []);
+            renderPublicBoard();
+
+            document.getElementById('publicProfileView').classList.add('active');
+            history.replaceState(null, '', `${location.pathname}?code=${code}`);
+        }
+
+        function renderPublicStats(lib) {
+            let totalHours = 0, gamesBeaten = 0, showsCompleted = 0, totalRating = 0, ratedCount = 0;
+            lib.forEach(item => {
+                if (item.rating && item.rating > 0) { totalRating += item.rating; ratedCount++; }
+                if (item.category === 'game') {
+                    totalHours += item.hoursPlayed || 0;
+                    if (item.status === 'beaten') gamesBeaten++;
+                } else if (item.status === 'completed') {
+                    showsCompleted++;
+                }
+            });
+            document.getElementById('publicStatsGrid').innerHTML = `
+                <div class="stat-card"><span class="stat-value">${totalHours}</span><span class="stat-label">Hours Played</span></div>
+                <div class="stat-card"><span class="stat-value">${gamesBeaten}</span><span class="stat-label">Games Beaten</span></div>
+                <div class="stat-card"><span class="stat-value">${showsCompleted}</span><span class="stat-label">Movies &amp; Shows Completed</span></div>
+                <div class="stat-card"><span class="stat-value">${ratedCount ? (totalRating / ratedCount).toFixed(1) : '0'}</span><span class="stat-label">Average Score</span></div>
+            `;
+        }
+
+        function createPublicCardElement(item) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            const placeholderImg = 'https://via.placeholder.com/300x450/181d28/9ca3af?text=No+Poster';
+            const badgeClass = item.category === 'movie' ? 'movie' : (item.category === 'show' ? 'show' : 'game');
+
+            let ratingBadge = '';
+            if (item.rating && item.rating > 0) {
+                const color = getRatingColor(item.rating);
+                ratingBadge = `<div class="card-rating-badge" style="display:block; color:${color}; border-color:${color}">${item.rating}</div>`;
+            }
+
+            let infoBadge = '';
+            const noRatingClass = !(item.rating && item.rating > 0) ? 'no-rating' : '';
+            if (item.category === 'game' && item.hoursPlayed) {
+                infoBadge = `<div class="card-info-badge ${noRatingClass}">${item.hoursPlayed} hours</div>`;
+            } else if ((item.category === 'show' || item.category === 'movie') && item.progress && !item.progress.idk && item.status !== 'completed' && item.progress.currentSeason && item.progress.currentEpisode) {
+                infoBadge = `<div class="card-info-badge ${noRatingClass}">S${item.progress.currentSeason} EP ${item.progress.currentEpisode}</div>`;
+            }
+
+            const tagsHtml = generateTagHTML(item);
+            card.innerHTML = `
+                <img src="${item.poster || placeholderImg}" loading="lazy" onerror="this.src='${placeholderImg}'">
+                <span class="badge ${badgeClass}">${item.category}</span>
+                ${ratingBadge}
+                ${infoBadge}
+                <div class="card-overlay">
+                    <div>
+                        <div class="card-title">${item.title}</div>
+                        <div class="card-meta">${item.year || 'N/A'}</div>
+                        <div class="card-tags">${tagsHtml}</div>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        function renderPublicBoard() {
+            const container = document.getElementById('publicColumnsContainer');
+            container.innerHTML = '';
+            if (!currentPublicProfileData) return;
+
+            const lib = currentPublicProfileData.mediaLibrary || [];
+            const cols = (currentPublicProfileData.collections && currentPublicProfileData.collections[publicProfileActiveTab]) || DEFAULT_COLUMNS[publicProfileActiveTab];
+
+            cols.forEach(list => {
+                const columnEl = document.createElement('div');
+                columnEl.className = 'column';
+
+                let filteredItems = lib.filter(item => {
+                    const matchCollection = publicProfileActiveTab === 'games' ? item.category === 'game' : (item.category === 'movie' || item.category === 'show');
+                    return matchCollection && item.status === list.id;
+                });
+                if (list.id === 'plan') filteredItems.sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
+                else filteredItems.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+
+                columnEl.innerHTML = `
+                    <div class="column-header">
+                        <span>${list.name}</span>
+                        <span class="column-count">${filteredItems.length}</span>
+                    </div>
+                    <div class="column-dropzone"></div>
+                `;
+                const dropzone = columnEl.querySelector('.column-dropzone');
+                if (filteredItems.length === 0) dropzone.innerHTML = `<div class="empty-state">No titles</div>`;
+                else filteredItems.forEach(item => dropzone.appendChild(createPublicCardElement(item)));
+                container.appendChild(columnEl);
+            });
+        }
+
+        document.querySelectorAll('#publicCollectionSwitch .collection-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                publicProfileActiveTab = tab.dataset.ptab;
+                document.querySelectorAll('#publicCollectionSwitch .collection-tab').forEach(t => t.classList.toggle('active', t === tab));
+                renderPublicBoard();
+            });
+        });
+
+        document.getElementById('exitPublicProfileBtn').addEventListener('click', () => {
+            document.getElementById('publicProfileView').classList.remove('active');
+            currentPublicProfileData = null;
+            history.replaceState(null, '', location.pathname);
+        });
+
         // Export, Import & Clear All
         document.getElementById('exportDataBtn').addEventListener('click', () => {
             const exportObj = {
@@ -2348,6 +2762,38 @@ const firebaseConfig = {
         const db = firebase.firestore();
         try { db.enablePersistence({ synchronizeTabs: true }); } catch (e) { /* unsupported browser - fine, just no offline cache */ }
 
+        // Explicitly force LOCAL (IndexedDB-backed) session persistence and log if it fails.
+        // Some browsers/extensions (Brave, Safari ITP, aggressive privacy/ad-block settings)
+        // silently fail to write or restore this, which is exactly what causes "signed in but
+        // a refresh sends me back to the login screen" - by awaiting and catching it explicitly
+        // instead of relying on the (usually silent) default, we can surface the real error.
+        const authPersistenceReady = auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => {
+            console.error('Could not set Firebase Auth persistence - your browser may be blocking local storage/IndexedDB for this site:', e);
+        });
+
+        // Wraps a promise so a sign-in call that silently never resolves (common when a
+        // request gets dropped by a browser privacy shield or ad/tracker blocker with no
+        // JS-visible error) still surfaces something to the user instead of doing nothing.
+        function withTimeout(promise, ms, timeoutMessage) {
+            return Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error(timeoutMessage)), ms))
+            ]);
+        }
+
+        // Last-resort net: if a Firebase call rejects somewhere without being caught locally,
+        // this still puts a message in front of the user instead of leaving the button dead.
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+            const gate = document.getElementById('authGate');
+            const errorEl = document.getElementById('authError');
+            if (errorEl && gate && !gate.classList.contains('hidden')) {
+                errorEl.innerText = (event.reason && event.reason.message)
+                    ? event.reason.message
+                    : "Something went wrong signing in - your browser's privacy/shield settings for this site may be blocking it.";
+            }
+        });
+
         let currentUser = null;
         let isLoadingCloudState = false;
         let cloudSyncTimer = null;
@@ -2370,6 +2816,9 @@ const firebaseConfig = {
                 initialSearchLimit,
                 fastDragEnabled,
                 soundEnabled,
+                shareCode,
+                shareEnabled,
+                shareDisplayName,
                 theme: localStorage.getItem('vault_theme') || 'default',
                 customTheme: JSON.parse(localStorage.getItem('vault_custom_theme') || '{}'),
                 updatedAt: Date.now()
@@ -2386,6 +2835,7 @@ const firebaseConfig = {
             cloudSyncTimer = setTimeout(async () => {
                 try {
                     await userDocRef(currentUser.uid).set(getFullStateSnapshot(), { merge: true });
+                    if (shareEnabled && shareCode) await pushPublicProfile();
                     if (statusEl) statusEl.innerText = 'Synced to the cloud.';
                 } catch (e) {
                     console.error('Cloud sync failed:', e);
@@ -2408,6 +2858,10 @@ const firebaseConfig = {
                     initialSearchLimit = data.initialSearchLimit || 8;
                     fastDragEnabled = !!data.fastDragEnabled;
                     soundEnabled = data.soundEnabled !== false;
+                    shareCode = data.shareCode || '';
+                    shareEnabled = !!data.shareEnabled;
+                    shareDisplayName = data.shareDisplayName || '';
+                    persistShareStateLocally();
 
                     localStorage.setItem('vault_media_library_v3', JSON.stringify(mediaLibrary));
                     localStorage.setItem('vault_collections_config', JSON.stringify(collections));
@@ -2463,28 +2917,55 @@ const firebaseConfig = {
             const email = document.getElementById('authEmailInput').value.trim();
             const password = document.getElementById('authPasswordInput').value;
             const errorEl = document.getElementById('authError');
+            const submitBtn = document.getElementById('authSubmitBtn');
             errorEl.innerText = '';
             if (!email || !password) { errorEl.innerText = 'Enter an email and password.'; return; }
 
+            const originalLabel = submitBtn.innerText;
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Signing in...';
+
             try {
-                if (authMode === 'signin') {
-                    await auth.signInWithEmailAndPassword(email, password);
-                } else {
-                    await auth.createUserWithEmailAndPassword(email, password);
-                }
+                await authPersistenceReady; // make sure persistence mode is settled first
+                const signInCall = authMode === 'signin'
+                    ? auth.signInWithEmailAndPassword(email, password)
+                    : auth.createUserWithEmailAndPassword(email, password);
+                await withTimeout(
+                    signInCall,
+                    12000,
+                    "That's taking too long and may be getting blocked by a browser privacy setting or extension (ad blocker, tracker/shield blocking, or 'block all cookies'). Try allowing this site, or a different browser."
+                );
             } catch (e) {
+                console.error('Sign-in failed:', e);
                 errorEl.innerText = e.message || 'Something went wrong.';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = originalLabel;
             }
         });
 
         document.getElementById('authGoogleBtn').addEventListener('click', async () => {
             const errorEl = document.getElementById('authError');
+            const googleBtn = document.getElementById('authGoogleBtn');
             errorEl.innerText = '';
+            const originalLabel = googleBtn.innerText;
+            googleBtn.disabled = true;
+            googleBtn.innerText = 'Signing in...';
+
             try {
+                await authPersistenceReady;
                 const provider = new firebase.auth.GoogleAuthProvider();
-                await auth.signInWithPopup(provider);
+                await withTimeout(
+                    auth.signInWithPopup(provider),
+                    20000,
+                    "That's taking too long and may be getting blocked by a browser privacy setting or extension. Try allowing this site, disabling pop-up/tracker blocking, or a different browser."
+                );
             } catch (e) {
+                console.error('Google sign-in failed:', e);
                 errorEl.innerText = e.message || 'Google sign-in failed.';
+            } finally {
+                googleBtn.disabled = false;
+                googleBtn.innerText = originalLabel;
             }
         });
 
@@ -2513,6 +2994,18 @@ const firebaseConfig = {
                 gate.classList.remove('hidden');
             }
         });
+
+        // If this page was opened via a shared "?code=XXXX" link, jump straight to that
+        // read-only profile - this works even before/without signing in, since the shared
+        // page renders on top of the sign-in gate.
+        (function checkForSharedProfileLink() {
+            const params = new URLSearchParams(location.search);
+            const code = params.get('code');
+            if (!code) return;
+            db.collection('publicProfiles').doc(code.toUpperCase()).get().then(doc => {
+                if (doc.exists) renderPublicProfile(code.toUpperCase(), doc.data());
+            }).catch(e => console.error('Could not load shared profile from link:', e));
+        })();
 
         // Init Setup
         setupSyncs();
