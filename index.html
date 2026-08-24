@@ -119,6 +119,8 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+            transition: background-color 0.3s, border-color 0.3s;
         }
 
         .header-top {
@@ -168,12 +170,13 @@
 
         .btn {
             background: var(--accent); color: white; border: none; padding: 0.6rem 1.2rem;
-            border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+            border-radius: 9px; font-weight: 600; cursor: pointer; transition: background 0.2s ease, transform 0.15s cubic-bezier(.2,.8,.2,1), box-shadow 0.2s ease;
             display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; font-size: 0.85rem;
         }
-        .btn:hover { background: var(--accent-hover); }
+        .btn:hover { background: var(--accent-hover); box-shadow: 0 4px 14px var(--accent-glow); }
+        .btn:active { transform: scale(0.96); }
         .btn-secondary { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); }
-        .btn-secondary:hover { background: var(--bg-card-hover); color: var(--text-main); }
+        .btn-secondary:hover { background: var(--bg-card-hover); color: var(--text-main); box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
         .btn-danger { background: #dc2626; color: white; }
         .btn-danger:hover { background: #b91c1c; }
 
@@ -232,10 +235,25 @@
         .card {
             background: var(--bg-card); border-radius: 10px; overflow: hidden; border: 1px solid var(--border);
             position: relative; aspect-ratio: 2 / 3; display: flex; flex-direction: column;
-            transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: grab; user-select: none;
+            transition: transform 0.25s cubic-bezier(.2,.8,.2,1), box-shadow 0.25s ease, border-color 0.25s ease;
+            cursor: grab; user-select: none;
+            animation: cardEnter 0.4s cubic-bezier(.2,.8,.2,1) backwards;
         }
-        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6); border-color: var(--accent); }
+        @keyframes cardEnter { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .card:hover { transform: translateY(-6px) scale(1.015); box-shadow: 0 14px 28px rgba(0, 0, 0, 0.55); border-color: var(--accent); }
         .card img { width: 100%; height: 100%; object-fit: cover; background: #111; pointer-events: none; }
+
+        /* Skeleton loading placeholder for posters, instead of a flat black box while they load */
+        .poster-wrap { position: relative; width: 100%; height: 100%; flex: 1; overflow: hidden; background: var(--bg-card); }
+        .poster-wrap::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(100deg, var(--bg-card) 30%, var(--bg-card-hover) 50%, var(--bg-card) 70%);
+            background-size: 200% 100%; animation: skeletonShimmer 1.4s ease-in-out infinite;
+        }
+        .poster-wrap.poster-loaded::before { animation: none; opacity: 0; transition: opacity 0.3s ease; }
+        .poster-wrap img { position: relative; z-index: 1; opacity: 0; transition: opacity 0.35s ease; }
+        .poster-wrap img.loaded { opacity: 1; }
+        @keyframes skeletonShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
         .card-overlay {
             position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, transparent 100%);
@@ -299,7 +317,9 @@
         .column {
             background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
             padding: 1rem; min-width: 260px; flex: 1; display: flex; flex-direction: column; max-width: 380px;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
         }
+        .column:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
         .columns-container.list-view .column { max-width: 100%; width: 100%; }
 
         .column-header {
@@ -307,9 +327,9 @@
             padding-bottom: 0.75rem; margin-bottom: 1rem; border-bottom: 2px solid var(--border);
             display: flex; justify-content: space-between; align-items: center;
         }
-        .delete-col-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; }
-        .delete-col-btn:hover { color: #ef4444; }
-        .column-count { background: var(--bg-card-hover); color: var(--text-muted); padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; }
+        .delete-col-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; transition: color 0.2s ease, transform 0.15s ease; }
+        .delete-col-btn:hover { color: #ef4444; transform: scale(1.1); }
+        .column-count { background: var(--bg-card-hover); color: var(--text-muted); padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; transition: background 0.2s ease; }
 
         .column-dropzone {
             flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -421,6 +441,9 @@
         }
         .modal.active { display: flex; animation: fadeIn 0.2s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes modalPop { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .modal.active .modal-split-content,
+        .modal.active .modal-basic-content { animation: modalPop 0.28s cubic-bezier(.2,.8,.2,1); }
 
         .modal-split-content {
             background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; width: 100%;
@@ -485,7 +508,7 @@
         .flex-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;}
         .flex-row > div { flex: 1; }
 
-        .empty-state { grid-column: 1 / -1; text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 0.85rem; }
+        .empty-state { grid-column: 1 / -1; text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); font-size: 0.85rem; animation: fadeIn 0.3s ease; }
         
         .theme-picker-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 1rem; }
         .theme-btn { padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-dark); color: var(--text-main); cursor: pointer; text-align: center; font-size: 0.8rem;}
@@ -548,6 +571,85 @@
         .public-profile-main { padding: 2rem; max-width: 1700px; margin: 0 auto; }
         #publicProfileView .card { cursor: default; }
         #publicProfileView .card:hover { transform: none; box-shadow: none; border-color: var(--border); }
+
+        /* --- General motion & polish additions --- */
+
+        /* Thin, themed scrollbars for a sleeker feel throughout the app */
+        * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+        *::-webkit-scrollbar { width: 8px; height: 8px; }
+        *::-webkit-scrollbar-track { background: transparent; }
+        *::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+        *::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        /* Fade the main views in when switching tabs, instead of an abrupt swap */
+        #collectionView, #recsView, #activityView, #statsView { animation: fadeIn 0.25s ease; }
+
+        /* Small satisfying pulse for "Copied!" style feedback buttons */
+        @keyframes successPulse { 0% { transform: scale(1); } 40% { transform: scale(1.06); } 100% { transform: scale(1); } }
+        .pulse-success { animation: successPulse 0.35s ease; }
+
+        /* Column drop zones already highlight on drag-over; make the highlight transition smoothly */
+        .column-dropzone { transition: background-color 0.2s ease, border-color 0.2s ease; }
+
+        /* Slightly livelier collection tab switch */
+        .collection-tab { transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease; }
+
+        /* --- Guest Mode persistent reminder banner --- */
+        #guestBanner {
+            display: none; position: sticky; top: 0; z-index: 90;
+            background: linear-gradient(90deg, var(--accent-glow), transparent);
+            border-bottom: 1px solid var(--border);
+            padding: 0.55rem 2rem; font-size: 0.8rem; color: var(--text-main);
+            align-items: center; justify-content: center; gap: 0.75rem; flex-wrap: wrap; text-align: center;
+            animation: fadeIn 0.3s ease;
+        }
+        #guestBanner.visible { display: flex; }
+        #guestBanner strong { color: var(--accent); }
+        #guestBanner .btn { padding: 0.3rem 0.7rem; font-size: 0.72rem; }
+
+        /* --- Friends list (inside Share modal) --- */
+        .friend-row {
+            display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.5rem;
+            border-bottom: 1px solid var(--border); animation: fadeIn 0.2s ease;
+        }
+        .friend-row:last-child { border-bottom: none; }
+        .friend-avatar {
+            width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--accent), #c084fc);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 0.9rem; color: #fff;
+        }
+        .friend-info { flex: 1; min-width: 0; }
+        .friend-name { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .friend-code { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 1px; }
+        .btn-icon {
+            background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.9rem;
+            padding: 0.3rem 0.5rem; border-radius: 6px; transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+        }
+        .btn-icon:hover { color: #ef4444; background: rgba(239, 68, 68, 0.12); }
+        .btn-icon:active { transform: scale(0.9); }
+        .friends-empty-hint { font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1.5rem 0.5rem; }
+
+        /* --- Surprise Me modal --- */
+        .surprise-card {
+            display: flex; gap: 1.25rem; text-align: left; background: var(--bg-dark); border: 1px solid var(--border);
+            border-radius: 10px; padding: 1rem; margin: 1rem 0;
+        }
+        .surprise-card img {
+            width: 110px; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; flex-shrink: 0;
+            border: 1px solid var(--border);
+        }
+        .surprise-info { min-width: 0; display: flex; flex-direction: column; }
+        .surprise-info h4 { font-size: 1.05rem; margin-bottom: 0.3rem; }
+        .surprise-info .surprise-meta { font-size: 0.78rem; color: var(--accent); margin-bottom: 0.5rem; }
+        .surprise-info .surprise-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; overflow-y: auto; }
+        @keyframes surpriseRoll {
+            0% { opacity: 0; transform: scale(0.92) rotate(-1.5deg); }
+            60% { opacity: 1; transform: scale(1.02) rotate(0.5deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        .surprise-roll-anim { animation: surpriseRoll 0.4s cubic-bezier(.2,.8,.2,1); }
+        .surprise-empty { text-align: center; padding: 1.5rem 0.5rem; color: var(--text-muted); font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -589,6 +691,12 @@
         </div>
     </header>
 
+    <div id="guestBanner">
+        <span>👤 <strong>Guest Mode</strong> — your Vault isn't backed up anywhere. Export it regularly, or sign in to sync it automatically.</span>
+        <button class="btn btn-secondary" id="guestBannerExportBtn">📥 Export Now</button>
+        <button class="btn" id="guestBannerSignInBtn">Sign In / Sign Up</button>
+    </div>
+
     <main>
         <div class="search-results-wrapper" id="searchResultsWrapper">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -629,6 +737,7 @@
         <div id="collectionView">
             <div class="board-controls">
                 <button class="btn btn-secondary" id="toggleViewBtn">📋 Switch to List View</button>
+                <button class="btn btn-secondary" id="surpriseMeBtn">🎲 Surprise Me</button>
                 <button class="btn btn-secondary" id="newListBtn">+ Create Custom List</button>
             </div>
 
@@ -864,6 +973,7 @@
             <div class="share-tab-switch">
                 <button class="share-tab active" id="shareTabMineBtn">My Code</button>
                 <button class="share-tab" id="shareTabViewBtn">View a Profile</button>
+                <button class="share-tab" id="shareTabFriendsBtn">Friends</button>
             </div>
 
             <!-- My Code Pane -->
@@ -899,6 +1009,11 @@
                 <p class="share-error-text" id="shareViewError"></p>
             </div>
 
+            <!-- Friends Pane -->
+            <div id="shareFriendsPane" style="display: none;">
+                <div id="friendsListContainer"></div>
+            </div>
+
             <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
                 <button class="btn" id="closeShareModalBtn">Done</button>
             </div>
@@ -918,7 +1033,10 @@
                     <div class="public-profile-sub" id="publicProfileCodeText">Code: ------</div>
                 </div>
             </div>
-            <button class="btn btn-secondary" id="exitPublicProfileBtn">✖ Back to My Vault</button>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-secondary" id="addFriendBtn">☆ Save as Friend</button>
+                <button class="btn btn-secondary" id="exitPublicProfileBtn">✖ Back to My Vault</button>
+            </div>
         </div>
 
         <div class="public-profile-main">
@@ -942,6 +1060,35 @@
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                 <button class="btn btn-secondary" id="closeListModalBtn">Cancel</button>
                 <button class="btn" id="saveListBtn">Add List</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Surprise Me Modal -->
+    <div class="modal" id="surpriseModal">
+        <div class="modal-basic-content" style="max-width: 460px;">
+            <h3 id="surpriseModalTitle">🎲 Surprise Me</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.4rem;" id="surpriseModalSub">A random pick from your Plan list.</p>
+
+            <div id="surpriseEmptyState" class="surprise-empty" style="display: none;"></div>
+
+            <div id="surpriseContent" style="display: none;">
+                <div class="surprise-card" id="surpriseCard">
+                    <img id="surprisePoster" src="" alt="Poster">
+                    <div class="surprise-info">
+                        <h4 id="surpriseTitle"></h4>
+                        <div class="surprise-meta" id="surpriseMeta"></div>
+                        <div class="surprise-desc" id="surpriseDesc"></div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary" style="flex: 1;" id="surpriseRerollBtn">🔄 Pick Another</button>
+                    <button class="btn" style="flex: 1;" id="surpriseStartBtn">▶ Start This</button>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
+                <button class="btn btn-secondary" id="closeSurpriseModalBtn">Close</button>
             </div>
         </div>
     </div>
@@ -1104,6 +1251,64 @@
         let shareDisplayName = localStorage.getItem('vault_share_display_name') || '';
         let publicProfileActiveTab = 'games';
         let currentPublicProfileData = null;
+        let currentPublicProfileCode = '';
+
+        // Friends list - saved share codes so you don't have to re-enter them every time
+        let friendsList = JSON.parse(localStorage.getItem('vault_friends_list') || '[]');
+
+        function persistFriendsLocally() {
+            localStorage.setItem('vault_friends_list', JSON.stringify(friendsList));
+        }
+
+        function isFriend(code) {
+            return friendsList.some(f => f.code === code);
+        }
+
+        function addFriend(code, displayName) {
+            code = (code || '').toUpperCase();
+            if (!code || isFriend(code)) return false;
+            friendsList.unshift({ code, displayName: (displayName || 'A Vault Curator').trim() || 'A Vault Curator', addedAt: Date.now() });
+            persistFriendsLocally();
+            queueCloudSync();
+            return true;
+        }
+
+        function removeFriend(code) {
+            friendsList = friendsList.filter(f => f.code !== code);
+            persistFriendsLocally();
+            queueCloudSync();
+        }
+
+        function renderFriendsList() {
+            const container = document.getElementById('friendsListContainer');
+            if (!friendsList.length) {
+                container.innerHTML = `<p class="friends-empty-hint">No friends saved yet. View someone's shared profile and tap "☆ Save as Friend" to add them here for quick access later.</p>`;
+                return;
+            }
+            container.innerHTML = friendsList.map(f => `
+                <div class="friend-row">
+                    <div class="friend-avatar">${(f.displayName || '?').charAt(0).toUpperCase()}</div>
+                    <div class="friend-info">
+                        <div class="friend-name">${f.displayName}</div>
+                        <div class="friend-code">${f.code}</div>
+                    </div>
+                    <button class="btn btn-secondary friend-view-btn" data-code="${f.code}" style="padding: 0.4rem 0.7rem; font-size: 0.75rem;">View</button>
+                    <button class="btn-icon friend-remove-btn" data-code="${f.code}" title="Remove friend">✖</button>
+                </div>
+            `).join('');
+            container.querySelectorAll('.friend-view-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.getElementById('shareModal').classList.remove('active');
+                    openPublicProfile(btn.dataset.code);
+                });
+            });
+            container.querySelectorAll('.friend-remove-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    removeFriend(btn.dataset.code);
+                    renderFriendsList();
+                });
+            });
+        }
 
         // Cloud sync state - declared early (before theme/init code runs) so nothing
         // that fires during initial page load can hit these while they're still in
@@ -1250,7 +1455,11 @@
                 if (filteredItems.length === 0) {
                     dropzone.innerHTML = `<div class="empty-state">No titles</div>`;
                 } else {
-                    filteredItems.forEach(item => dropzone.appendChild(createCardElement(item, false, list.id === 'plan')));
+                    filteredItems.forEach((item, idx) => {
+                        const cardEl = createCardElement(item, false, list.id === 'plan');
+                        cardEl.style.animationDelay = (Math.min(idx, 14) * 35) + 'ms';
+                        dropzone.appendChild(cardEl);
+                    });
                 }
 
                 dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
@@ -1340,7 +1549,9 @@
 
             if (isListView && !isSearchResult) {
                 card.innerHTML = `
-                    <img src="${item.poster || placeholderImg}" loading="lazy" onerror="this.src='${placeholderImg}'">
+                    <div class="poster-wrap">
+                        <img src="${item.poster || placeholderImg}" loading="lazy" onload="this.classList.add('loaded'); this.parentElement.classList.add('poster-loaded')" onerror="this.src='${placeholderImg}'">
+                    </div>
                     ${progressBarHtml}
                     <div class="card-overlay">
                         <div class="list-card-details">
@@ -1357,7 +1568,9 @@
                 `;
             } else {
                 card.innerHTML = `
-                    <img src="${item.poster || placeholderImg}" loading="lazy" onerror="this.src='${placeholderImg}'">
+                    <div class="poster-wrap">
+                        <img src="${item.poster || placeholderImg}" loading="lazy" onload="this.classList.add('loaded'); this.parentElement.classList.add('poster-loaded')" onerror="this.src='${placeholderImg}'">
+                    </div>
                     <span class="badge ${badgeClass}">${item.category}</span>
                     ${ratingBadge}
                     ${infoBadge}
@@ -1956,8 +2169,15 @@
                 category: 'game',
                 platforms: (g.parent_platforms || []).map(p => p.platform.name),
                 genres: (g.genres || []).map(gn => gn.name),
-                qualityScore: g.rating || 0 // RAWG rating, out of 5
+                qualityScore: g.rating || 0, // RAWG rating, out of 5
+                ratingsCount: g.ratings_count || 0
             };
+        }
+
+        // Recommendations should never surface obscure shovelware or poorly-reviewed titles just
+        // because they technically match a genre - this is the quality floor for "not slop."
+        function isGameQualityOk(mapped) {
+            return mapped.qualityScore >= 3.2 && mapped.ratingsCount >= 30;
         }
 
         function mapTmdbItem(m, type) {
@@ -1970,8 +2190,13 @@
                 category: type,
                 genres: (m.genre_ids || []).map(id => tmdbGenres[id]).filter(Boolean),
                 platforms: [],
-                qualityScore: m.vote_average || 0 // out of 10
+                qualityScore: m.vote_average || 0, // out of 10
+                voteCount: m.vote_count || 0
             };
+        }
+
+        function isMediaQualityOk(mapped) {
+            return mapped.qualityScore >= 6.0 && mapped.voteCount >= 50;
         }
 
         async function generateGameRecommendations() {
@@ -1995,7 +2220,7 @@
                     const data = await res.json();
                     (data.results || []).forEach(g => {
                         const mapped = mapRawgGame(g);
-                        if (!ownedIds.has(mapped.id)) {
+                        if (!ownedIds.has(mapped.id) && isGameQualityOk(mapped)) {
                             candidates.set(mapped.id, { item: mapped, score: mapped.qualityScore, matchedGenres: [] });
                         }
                     });
@@ -2018,7 +2243,7 @@
                     const data = await res.json();
                     (data.results || []).forEach(g => {
                         const mapped = mapRawgGame(g);
-                        if (ownedIds.has(mapped.id)) return;
+                        if (ownedIds.has(mapped.id) || !isGameQualityOk(mapped)) return;
 
                         const affinity = genreAffinity(genreScores, mapped.genres); // negative if it also leans into genres you rated poorly
                         const qualityBoost = mapped.qualityScore / 5; // 0..1
@@ -2065,7 +2290,7 @@
                         .filter(m => m.media_type === 'movie' || m.media_type === 'tv')
                         .forEach(m => {
                             const mapped = mapTmdbItem(m, m.media_type === 'tv' ? 'show' : 'movie');
-                            if (!ownedIds.has(mapped.id)) {
+                            if (!ownedIds.has(mapped.id) && isMediaQualityOk(mapped)) {
                                 candidates.set(mapped.id, { item: mapped, score: mapped.qualityScore, seedTitles: [] });
                             }
                         });
@@ -2086,7 +2311,7 @@
                     const data = await res.json();
                     (data.results || []).slice(0, 15).forEach(m => {
                         const mapped = mapTmdbItem(m, endpointType === 'tv' ? 'show' : 'movie');
-                        if (ownedIds.has(mapped.id)) return;
+                        if (ownedIds.has(mapped.id) || !isMediaQualityOk(mapped)) return;
 
                         const affinity = genreAffinity(genreScores, mapped.genres);
                         const qualityBoost = mapped.qualityScore / 5; // 0..2
@@ -2330,9 +2555,12 @@
         function switchShareTab(tab) {
             document.getElementById('shareTabMineBtn').classList.toggle('active', tab === 'mine');
             document.getElementById('shareTabViewBtn').classList.toggle('active', tab === 'view');
+            document.getElementById('shareTabFriendsBtn').classList.toggle('active', tab === 'friends');
             document.getElementById('shareMinePane').style.display = tab === 'mine' ? 'block' : 'none';
             document.getElementById('shareViewPane').style.display = tab === 'view' ? 'block' : 'none';
+            document.getElementById('shareFriendsPane').style.display = tab === 'friends' ? 'block' : 'none';
             document.getElementById('shareViewError').innerText = '';
+            if (tab === 'friends') renderFriendsList();
         }
 
         document.getElementById('shareBtn').addEventListener('click', () => {
@@ -2348,6 +2576,7 @@
         document.getElementById('closeShareModalBtn').addEventListener('click', () => document.getElementById('shareModal').classList.remove('active'));
         document.getElementById('shareTabMineBtn').addEventListener('click', () => switchShareTab('mine'));
         document.getElementById('shareTabViewBtn').addEventListener('click', () => switchShareTab('view'));
+        document.getElementById('shareTabFriendsBtn').addEventListener('click', () => switchShareTab('friends'));
 
         document.getElementById('shareEnabledToggle').addEventListener('change', (e) => setShareEnabled(e.target.checked));
 
@@ -2424,12 +2653,22 @@
 
         function renderPublicProfile(code, data) {
             currentPublicProfileData = data;
+            currentPublicProfileCode = code;
             publicProfileActiveTab = 'games';
 
             const name = (data.displayName || 'A Vault Curator').trim() || 'A Vault Curator';
             document.getElementById('publicProfileNameText').innerText = name;
             document.getElementById('publicProfileAvatar').innerText = name.charAt(0).toUpperCase() || '?';
             document.getElementById('publicProfileCodeText').innerText = 'Code: ' + code;
+
+            const addFriendBtn = document.getElementById('addFriendBtn');
+            if (currentUser && code === shareCode) {
+                addFriendBtn.style.display = 'none'; // this is your own shared profile
+            } else {
+                addFriendBtn.style.display = 'inline-flex';
+                addFriendBtn.disabled = false;
+                addFriendBtn.innerText = isFriend(code) ? '★ Saved as Friend' : '☆ Save as Friend';
+            }
 
             document.querySelectorAll('#publicCollectionSwitch .collection-tab').forEach(t => t.classList.toggle('active', t.dataset.ptab === 'games'));
 
@@ -2439,6 +2678,21 @@
             document.getElementById('publicProfileView').classList.add('active');
             history.replaceState(null, '', `${location.pathname}?code=${code}`);
         }
+
+        document.getElementById('addFriendBtn').addEventListener('click', () => {
+            if (!currentPublicProfileCode) return;
+            const btn = document.getElementById('addFriendBtn');
+            if (isFriend(currentPublicProfileCode)) {
+                removeFriend(currentPublicProfileCode);
+                btn.innerText = '☆ Save as Friend';
+                btn.classList.add('pulse-success');
+            } else {
+                addFriend(currentPublicProfileCode, (currentPublicProfileData && currentPublicProfileData.displayName) || 'A Vault Curator');
+                btn.innerText = '★ Saved as Friend';
+                btn.classList.add('pulse-success');
+            }
+            setTimeout(() => btn.classList.remove('pulse-success'), 400);
+        });
 
         function renderPublicStats(lib) {
             let totalHours = 0, gamesBeaten = 0, showsCompleted = 0, totalRating = 0, ratedCount = 0;
@@ -2481,7 +2735,9 @@
 
             const tagsHtml = generateTagHTML(item);
             card.innerHTML = `
-                <img src="${item.poster || placeholderImg}" loading="lazy" onerror="this.src='${placeholderImg}'">
+                <div class="poster-wrap">
+                    <img src="${item.poster || placeholderImg}" loading="lazy" onload="this.classList.add('loaded'); this.parentElement.classList.add('poster-loaded')" onerror="this.src='${placeholderImg}'">
+                </div>
                 <span class="badge ${badgeClass}">${item.category}</span>
                 ${ratingBadge}
                 ${infoBadge}
@@ -2524,7 +2780,11 @@
                 `;
                 const dropzone = columnEl.querySelector('.column-dropzone');
                 if (filteredItems.length === 0) dropzone.innerHTML = `<div class="empty-state">No titles</div>`;
-                else filteredItems.forEach(item => dropzone.appendChild(createPublicCardElement(item)));
+                else filteredItems.forEach((item, idx) => {
+                    const cardEl = createPublicCardElement(item);
+                    cardEl.style.animationDelay = (Math.min(idx, 14) * 35) + 'ms';
+                    dropzone.appendChild(cardEl);
+                });
                 container.appendChild(columnEl);
             });
         }
@@ -2726,6 +2986,66 @@
             saveAndRefresh(); document.getElementById('listModal').classList.remove('active');
         });
 
+        // ============================================================
+        // Surprise Me - randomly picks one title from the current tab's
+        // Plan to Play/Watch list, for when you're too indecisive to choose.
+        // ============================================================
+        let currentSurpriseItem = null;
+        const surprisePlaceholderImg = 'https://via.placeholder.com/300x450/181d28/9ca3af?text=No+Poster';
+
+        function getSurprisePool() {
+            return mediaLibrary.filter(item => {
+                if (item.status !== 'plan') return false;
+                return activeTab === 'games' ? item.category === 'game' : (item.category === 'movie' || item.category === 'show');
+            });
+        }
+
+        function rollSurprise() {
+            const pool = getSurprisePool();
+            document.getElementById('surpriseModalSub').innerText = activeTab === 'games'
+                ? 'A random pick from your Plan to Play list.'
+                : 'A random pick from your Plan to Watch list.';
+
+            if (!pool.length) {
+                currentSurpriseItem = null;
+                document.getElementById('surpriseContent').style.display = 'none';
+                const empty = document.getElementById('surpriseEmptyState');
+                empty.style.display = 'block';
+                empty.innerText = `Your ${activeTab === 'games' ? 'Plan to Play' : 'Plan to Watch'} list is empty - add a few titles first!`;
+                return;
+            }
+
+            document.getElementById('surpriseEmptyState').style.display = 'none';
+            document.getElementById('surpriseContent').style.display = 'block';
+
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            currentSurpriseItem = pick;
+
+            document.getElementById('surprisePoster').src = pick.poster || surprisePlaceholderImg;
+            document.getElementById('surpriseTitle').innerText = pick.title;
+            document.getElementById('surpriseMeta').innerText = `${pick.year || 'N/A'}${(pick.genres && pick.genres.length) ? ' • ' + pick.genres.slice(0, 3).join(', ') : ''}`;
+            const desc = pick.description || 'No description available.';
+            document.getElementById('surpriseDesc').innerText = desc.length > 220 ? desc.slice(0, 220) + '…' : desc;
+
+            const card = document.getElementById('surpriseCard');
+            card.classList.remove('surprise-roll-anim');
+            void card.offsetWidth; // restart the animation
+            card.classList.add('surprise-roll-anim');
+        }
+
+        document.getElementById('surpriseMeBtn').addEventListener('click', () => {
+            document.getElementById('surpriseModal').classList.add('active');
+            rollSurprise();
+        });
+        document.getElementById('surpriseRerollBtn').addEventListener('click', rollSurprise);
+        document.getElementById('closeSurpriseModalBtn').addEventListener('click', () => document.getElementById('surpriseModal').classList.remove('active'));
+        document.getElementById('surpriseStartBtn').addEventListener('click', () => {
+            if (!currentSurpriseItem) return;
+            const newStatus = currentSurpriseItem.category === 'game' ? 'playing' : 'watching';
+            updateItemStatus(currentSurpriseItem.id, newStatus);
+            document.getElementById('surpriseModal').classList.remove('active');
+        });
+
         // Custom Delete List Handler with In-App Confirmation Modal
         window.deleteCustomList = async function(listId) {
             const targetCol = collections[activeTab].find(c => c.id === listId);
@@ -2811,6 +3131,7 @@ const firebaseConfig = {
                 shareCode,
                 shareEnabled,
                 shareDisplayName,
+                friendsList,
                 theme: localStorage.getItem('vault_theme') || 'default',
                 customTheme: JSON.parse(localStorage.getItem('vault_custom_theme') || '{}'),
                 updatedAt: Date.now()
@@ -2851,7 +3172,9 @@ const firebaseConfig = {
                     shareCode = data.shareCode || '';
                     shareEnabled = !!data.shareEnabled;
                     shareDisplayName = data.shareDisplayName || '';
+                    friendsList = data.friendsList || friendsList || [];
                     persistShareStateLocally();
+                    persistFriendsLocally();
 
                     localStorage.setItem('vault_media_library_v3', JSON.stringify(mediaLibrary));
                     localStorage.setItem('vault_collections_config', JSON.stringify(collections));
@@ -2962,21 +3285,34 @@ const firebaseConfig = {
             const signOutBtn = document.getElementById('signOutBtn');
             const syncStatus = document.getElementById('cloudSyncStatus');
             const guestReminder = document.getElementById('guestExportReminder');
+            const guestBanner = document.getElementById('guestBanner');
             if (currentUser) {
                 emailDisplay.innerText = currentUser.email || 'Signed in';
                 signOutBtn.innerText = 'Sign Out';
                 if (guestReminder) guestReminder.style.display = 'none';
+                if (guestBanner) guestBanner.classList.remove('visible');
             } else if (isGuestMode) {
                 emailDisplay.innerText = 'Guest Mode - not signed in';
                 signOutBtn.innerText = 'Sign In / Create Account';
                 if (syncStatus) syncStatus.innerText = 'Not synced to the cloud - use Export Data below to back this up, or sign in to sync it automatically.';
                 if (guestReminder) guestReminder.style.display = 'block';
+                if (guestBanner) guestBanner.classList.add('visible');
             } else {
                 emailDisplay.innerText = 'Not signed in';
                 signOutBtn.innerText = 'Sign Out';
                 if (guestReminder) guestReminder.style.display = 'none';
+                if (guestBanner) guestBanner.classList.remove('visible');
             }
         }
+
+        document.getElementById('guestBannerExportBtn').addEventListener('click', () => {
+            document.getElementById('exportDataBtn').click();
+        });
+        document.getElementById('guestBannerSignInBtn').addEventListener('click', () => {
+            isGuestMode = false;
+            document.getElementById('authGate').classList.remove('hidden');
+            updateAccountUI();
+        });
 
         document.getElementById('signOutBtn').addEventListener('click', () => {
             if (currentUser) {
