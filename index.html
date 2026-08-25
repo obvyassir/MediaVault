@@ -255,11 +255,11 @@
         .poster-wrap img.loaded { opacity: 1; }
         @keyframes skeletonShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-        .card-overlay {
-            position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, transparent 100%);
-            opacity: 0; transition: opacity 0.2s ease; display: flex; flex-direction: column; justify-content: flex-end; padding: 0.85rem;
-            pointer-events: none;
-        }
+.card-overlay {
+    position: absolute; inset: 0; z-index: 2; background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 60%, transparent 100%);
+    opacity: 0; transition: opacity 0.2s ease; display: flex; flex-direction: column; justify-content: flex-end; padding: 0.85rem;
+    pointer-events: none;
+}
         .card:hover .card-overlay { opacity: 1; }
         .card-overlay * { pointer-events: auto; }
 
@@ -650,6 +650,137 @@
         }
         .surprise-roll-anim { animation: surpriseRoll 0.4s cubic-bezier(.2,.8,.2,1); }
         .surprise-empty { text-align: center; padding: 1.5rem 0.5rem; color: var(--text-muted); font-size: 0.85rem; }
+
+        /* ============================================================
+           MOBILE & TOUCH OPTIMIZATION
+           - Card hover info (title + genre/platform tags) becomes always
+             visible on touch devices, since there's no real hover state
+           - Larger touch targets, no accidental iOS input zoom
+           - Kanban columns become a swipeable, snap-scrolling board
+           - Header/controls stack into a thumb-friendly layout
+           - A touch drag-and-drop ghost element for the JS DnD polyfill
+           ============================================================ */
+        * { -webkit-tap-highlight-color: transparent; }
+
+        /* Touch devices have no :hover, so keep the title/tag overlay always visible */
+        @media (hover: none) {
+            .card-overlay { opacity: 1; pointer-events: auto; }
+            .card:hover { transform: none; box-shadow: none; border-color: var(--border); }
+            .card:active { transform: scale(0.97); transition: transform 0.1s ease; }
+            .card { cursor: pointer; touch-action: manipulation; }
+        }
+
+        /* Floating clone of a card that follows the finger during a touch drag */
+        .touch-drag-ghost {
+            position: fixed; pointer-events: none; z-index: 9999; opacity: 0.92;
+            border-radius: 10px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            transform: scale(1.06) rotate(-2deg); will-change: left, top;
+        }
+        .card.touch-dragging { opacity: 0.35; }
+
+        .mobile-drag-hint { display: none; font-size: 0.72rem; color: var(--text-muted); text-align: center; padding: 0 0 0.85rem; }
+
+        @keyframes modalSlideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 768px) {
+            /* Inputs need >=16px font-size or iOS Safari auto-zooms on focus */
+            .search-input, .modal input[type="text"], .modal input[type="number"],
+            .modal select, .auth-card input, #viewCodeInput { font-size: 16px; }
+
+            body { font-size: 15px; }
+            main { padding: 1rem 0.85rem 5rem; }
+
+            /* Header: stack logo / search / controls, full-width thumb-friendly search & buttons */
+            header { padding: 0.75rem 1rem; }
+            .header-top { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+            .logo { text-align: center; font-size: 1.3rem; }
+            .search-container { max-width: 100%; }
+            .controls { justify-content: stretch; }
+            .controls .btn { flex: 1; }
+            #guestBanner { padding: 0.55rem 1rem; }
+
+            /* Collection tabs become a horizontally scrollable pill strip instead of wrapping */
+            .collection-switch {
+                flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain;
+                -webkit-overflow-scrolling: touch; gap: 0.4rem; padding-bottom: 0.5rem;
+                scroll-snap-type: x proximity;
+            }
+            .collection-switch::-webkit-scrollbar { display: none; }
+            .collection-tab {
+                flex-shrink: 0; padding: 0.6rem 1rem; font-size: 0.95rem;
+                scroll-snap-align: start; white-space: nowrap;
+            }
+
+            .mobile-drag-hint { display: block; }
+
+            /* Board controls stack and fill the width for easy tapping */
+            .board-controls { flex-direction: column; align-items: stretch; gap: 0.6rem; margin-bottom: 1rem; }
+            .board-controls .btn { width: 100%; padding: 0.75rem 1rem; }
+
+            /* Kanban board becomes a swipeable, one-column-at-a-time carousel */
+            .columns-container {
+                gap: 0; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+                margin: 0 -0.85rem; padding: 0 0 1rem;
+            }
+            .columns-container .column {
+                min-width: 88vw; max-width: 88vw; scroll-snap-align: center;
+                margin: 0 6vw; box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+            }
+            .columns-container.list-view { scroll-snap-type: none; margin: 0; }
+            .columns-container.list-view .column { min-width: 100%; max-width: 100%; margin: 0 0 1rem; }
+
+            .column-dropzone { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 0.6rem; }
+            .card-title { font-size: 0.85rem; }
+
+            /* List view rows: allow wrapping so tags/badges stay reachable */
+            .columns-container.list-view .card { flex-wrap: wrap; padding: 0.65rem 0.85rem; }
+            .columns-container.list-view .card-overlay { flex-wrap: wrap; }
+            .columns-container.list-view .list-right-section { flex-wrap: wrap; gap: 0.6rem; }
+
+            /* Search results & recommendation grids: smaller posters, comfortably tappable */
+            .poster-grid { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 0.7rem; }
+            .search-results-wrapper { padding: 1rem; }
+
+            /* Modals become near-fullscreen bottom sheets, easy to scroll one-handed */
+            .modal { padding: 0; align-items: flex-end; }
+            .modal-split-content {
+                flex-direction: column; max-width: 100%; width: 100%; max-height: 92vh;
+                border-radius: 16px 16px 0 0; animation: modalSlideUp 0.25s ease;
+            }
+            .modal-left, .modal-right { width: 100%; }
+            .modal-left { padding: 1.25rem; border-right: none; border-bottom: 1px solid var(--border); }
+            .modal-left img { max-width: 130px; }
+            .modal-right { padding: 1.25rem; }
+            .modal-basic-content {
+                max-width: 100%; width: 100%; max-height: 92vh;
+                border-radius: 16px 16px 0 0; animation: modalSlideUp 0.25s ease;
+            }
+
+            .flex-row { flex-direction: column; gap: 0.5rem; }
+            .flex-row > div { width: 100%; }
+
+            .theme-picker-container { grid-template-columns: repeat(2, 1fr); }
+
+            .surprise-card { flex-direction: column; }
+            .surprise-card img { width: 100%; max-width: 220px; margin: 0 auto; }
+
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+            .stat-card { padding: 1rem; }
+            .stat-value { font-size: 1.6rem; }
+
+            .public-profile-header { flex-direction: column; align-items: stretch; gap: 0.75rem; padding: 1rem; }
+            .public-profile-main { padding: 1rem; }
+
+            /* Footer delete zone: smaller so it doesn't dominate a small screen */
+            .footer-delete-zone { width: 170px; height: 90px; bottom: -20px; font-size: 0.8rem; padding-top: 18px; }
+        }
+
+        @media (max-width: 420px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .theme-picker-container { grid-template-columns: 1fr 1fr; }
+            .columns-container .column { min-width: 90vw; max-width: 90vw; margin: 0 5vw; }
+            .card-info-badge, .card-rating-badge, .badge { font-size: 0.62rem; }
+        }
     </style>
 </head>
 <body>
@@ -740,6 +871,7 @@
                 <button class="btn btn-secondary" id="surpriseMeBtn">🎲 Surprise Me</button>
                 <button class="btn btn-secondary" id="newListBtn">+ Create Custom List</button>
             </div>
+            <p class="mobile-drag-hint">💡 Press &amp; hold a title, then drag to move it between lists</p>
 
             <div class="columns-container" id="columnsContainer"></div>
         </div>
@@ -3378,6 +3510,182 @@ const firebaseConfig = {
         // Init Setup
         setupSyncs();
         renderBoard();
+
+        /* ============================================================
+           TOUCH DRAG & DROP POLYFILL
+           Native HTML5 drag-and-drop (dragstart/dragover/drop) doesn't
+           fire from touch gestures on phones/tablets. Rather than
+           duplicating all the move/reorder/delete logic above, this
+           listens for touch gestures and re-dispatches the SAME real
+           DragEvents (backed by a live DataTransfer object) that the
+           mouse-based handlers already expect. That means every existing
+           drag interaction - moving a card between lists, reordering the
+           Plan list, dropping on a tab to switch collections, and
+           dragging to the footer trash zone - keeps working on touch
+           without any of that logic being rewritten twice.
+
+           Gesture: press & hold a card briefly (like picking it up),
+           then drag. A quick tap that releases before the hold completes
+           is left alone so the normal "tap to edit" click still fires,
+           and a quick swipe before the hold completes cancels the drag
+           so the page/column can be scrolled normally.
+           ============================================================ */
+        (function enableTouchDragAndDrop() {
+            // Skip gracefully on very old browsers without these constructors, or on
+            // devices with no touch input at all (nothing to polyfill there).
+            if (typeof DataTransfer === 'undefined' || typeof DragEvent === 'undefined') return;
+            if (!('ontouchstart' in window) && navigator.maxTouchPoints === 0) return;
+
+            const HOLD_MS = 220;        // press-and-hold duration before a drag "picks up"
+            const MOVE_CANCEL_PX = 10;  // movement before hold completes -> treat as a scroll instead
+            const EDGE_PX = 70;         // distance from an edge that triggers auto-scroll while dragging
+            const DROP_SELECTOR = '.column-dropzone, .footer-delete-zone, .collection-tab';
+
+            let dragEl = null, dataTransfer = null, ghost = null;
+            let startX = 0, startY = 0, lastX = 0, lastY = 0;
+            let holdTimer = null, dragging = false;
+            let currentZoneEl = null;
+            let scrollRAF = null;
+
+            function makeGhost(el) {
+                const rect = el.getBoundingClientRect();
+                const g = el.cloneNode(true);
+                g.className = 'card touch-drag-ghost';
+                g.style.width = rect.width + 'px';
+                g.style.height = rect.height + 'px';
+                document.body.appendChild(g);
+                return g;
+            }
+
+            function moveGhost(x, y) {
+                if (!ghost) return;
+                ghost.style.left = (x - ghost.offsetWidth / 2) + 'px';
+                ghost.style.top = (y - ghost.offsetHeight / 2) + 'px';
+            }
+
+            function dispatchDrag(type, el, x, y) {
+                let ev;
+                try {
+                    ev = new DragEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, dataTransfer });
+                } catch (err) {
+                    ev = new DragEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y });
+                }
+                el.dispatchEvent(ev);
+                return ev;
+            }
+
+            function elementUnderFinger(x, y) {
+                if (ghost) ghost.style.display = 'none';
+                const el = document.elementFromPoint(x, y);
+                if (ghost) ghost.style.display = '';
+                return el;
+            }
+
+            function updateDropTarget(x, y) {
+                const deepEl = elementUnderFinger(x, y);
+                const zoneEl = deepEl ? deepEl.closest(DROP_SELECTOR) : null;
+
+                if (zoneEl !== currentZoneEl) {
+                    if (currentZoneEl) dispatchDrag('dragleave', currentZoneEl, x, y);
+                    currentZoneEl = zoneEl;
+                }
+                if (deepEl && zoneEl) dispatchDrag('dragover', deepEl, x, y);
+            }
+
+            function autoScrollTick() {
+                if (!dragging) { scrollRAF = null; return; }
+                if (lastY < EDGE_PX) window.scrollBy(0, -12);
+                else if (lastY > window.innerHeight - EDGE_PX) window.scrollBy(0, 12);
+
+                const hScroll = dragEl ? dragEl.closest('.columns-container') : null;
+                if (hScroll) {
+                    const r = hScroll.getBoundingClientRect();
+                    if (lastX < r.left + EDGE_PX) hScroll.scrollBy(-14, 0);
+                    else if (lastX > r.right - EDGE_PX) hScroll.scrollBy(14, 0);
+                }
+                scrollRAF = requestAnimationFrame(autoScrollTick);
+            }
+
+            function startDrag(x, y) {
+                dragging = true;
+                dataTransfer = new DataTransfer();
+                ghost = makeGhost(dragEl);
+                dragEl.classList.add('touch-dragging');
+                moveGhost(x, y);
+                if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+                dispatchDrag('dragstart', dragEl, x, y);
+                scrollRAF = requestAnimationFrame(autoScrollTick);
+            }
+
+            function endDrag(x, y) {
+                const deepEl = elementUnderFinger(x, y);
+                const zoneEl = deepEl ? deepEl.closest(DROP_SELECTOR) : null;
+                if (deepEl && zoneEl) dispatchDrag('drop', deepEl, x, y);
+                dispatchDrag('dragend', dragEl, x, y);
+                cleanup();
+            }
+
+            function cleanup() {
+                if (scrollRAF) cancelAnimationFrame(scrollRAF);
+                scrollRAF = null;
+                if (ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
+                ghost = null;
+                if (dragEl) dragEl.classList.remove('touch-dragging');
+                document.querySelectorAll('.drag-over, .drag-hover').forEach(el => el.classList.remove('drag-over', 'drag-hover'));
+                clearTimeout(holdTimer);
+                holdTimer = null;
+                dragEl = null; dataTransfer = null; dragging = false;
+                currentZoneEl = null;
+            }
+
+            document.addEventListener('touchstart', e => {
+                if (dragging) return;
+                const card = e.target.closest('.card[draggable="true"]');
+                if (!card) return;
+                if (e.target.closest('select, button, input, a, textarea')) return;
+
+                const t = e.touches[0];
+                dragEl = card;
+                startX = lastX = t.clientX;
+                startY = lastY = t.clientY;
+
+                holdTimer = setTimeout(() => {
+                    if (dragEl) startDrag(lastX, lastY);
+                }, HOLD_MS);
+            }, { passive: true });
+
+            document.addEventListener('touchmove', e => {
+                if (!dragEl) return;
+                const t = e.touches[0];
+                lastX = t.clientX; lastY = t.clientY;
+
+                if (!dragging) {
+                    if (Math.abs(lastX - startX) > MOVE_CANCEL_PX || Math.abs(lastY - startY) > MOVE_CANCEL_PX) {
+                        clearTimeout(holdTimer);
+                        dragEl = null; // let the page/column scroll normally
+                    }
+                    return;
+                }
+
+                e.preventDefault(); // block page scroll while actively dragging a card
+                moveGhost(lastX, lastY);
+                updateDropTarget(lastX, lastY);
+            }, { passive: false });
+
+            document.addEventListener('touchend', e => {
+                if (!dragEl) return;
+                clearTimeout(holdTimer);
+                if (dragging) {
+                    e.preventDefault(); // suppress the synthetic "click" so the edit modal doesn't also open
+                    const t = e.changedTouches[0];
+                    endDrag(t.clientX, t.clientY);
+                } else {
+                    dragEl = null; // plain tap - let the normal click-to-edit handler fire
+                }
+            });
+
+            document.addEventListener('touchcancel', () => cleanup());
+        })();
     </script>
 </body>
 </html>
