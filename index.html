@@ -1238,17 +1238,11 @@
         let activeTab = 'games';
         let isListView = false;
 
-        // RAWG/TMDB requests now route through a Cloudflare Worker proxy instead of
-        // calling the APIs directly. The real API keys live server-side as Worker
-        // secrets and are never shipped to the browser - visitors still don't need
-        // their own API accounts, but the shared keys can no longer be scraped out
-        // of this file's source.
-        //
-        // TODO: replace this with YOUR Worker's URL (no trailing slash), e.g.
-        // 'https://vault-proxy.yourname.workers.dev'
-        const API_PROXY_BASE = 'https://YOUR-WORKER-SUBDOMAIN.workers.dev';
-        const rawgEnabled = true;
-        const tmdbEnabled = true;
+        // Shared RAWG/TMDB keys baked in for every visitor, so nobody needs their own
+        // API accounts or a Settings screen to manage keys - search & recommendations
+        // just work out of the box.
+        const rawgApiKey = 'b7f0077bbbc74e859f9591d320419641';
+        const tmdbApiKey = '99a593469dd68400e3d31308ef6b07ec';
         let initialSearchLimit = parseInt(localStorage.getItem('vault_search_limit')) || 8;
 
         // Share-by-code state
@@ -1745,9 +1739,9 @@
                 gameDescEl.innerText = item.description || 'Loading game description...';
                 
                 const rawgId = item.id ? item.id.replace('rawg_', '') : null;
-                if (rawgEnabled && rawgId && (!item.fullDescriptionFetched)) {
+                if (rawgApiKey && rawgId && (!item.fullDescriptionFetched)) {
                     try {
-                        const res = await fetch(`${API_PROXY_BASE}/rawg/games/${rawgId}`);
+                        const res = await fetch(`https://api.rawg.io/api/games/${rawgId}?key=${rawgApiKey}`);
                         if (res.ok) {
                             const data = await res.json();
                             const cleanDesc = data.description_raw || data.description || item.description;
@@ -1823,10 +1817,10 @@
                 idkBox.onchange = () => { seasonSel.disabled = idkBox.checked; epSel.disabled = idkBox.checked; };
                 idkBox.onchange(); 
 
-                if(tmdbEnabled) {
+                if(tmdbApiKey) {
                     try {
                         const id = item.id.replace('tmdb_', '');
-                        const res = await fetch(`${API_PROXY_BASE}/tmdb/tv/${id}`);
+                        const res = await fetch(`https://api.themoviedb.org/3/tv/${id}?api_key=${tmdbApiKey}`);
                         const data = await res.json();
                         currentShowSeasons = data.seasons.filter(s => s.season_number > 0); 
                     } catch(e) { currentShowSeasons = []; }
@@ -1932,9 +1926,9 @@
             let fetchedGames = [];
             let fetchedMedia = [];
 
-            if (rawgEnabled) {
+            if (rawgApiKey) {
                 try {
-                    const res = await fetch(`${API_PROXY_BASE}/rawg/games?page_size=40&search=${encodeURIComponent(query)}&search_precise=true&ordering=-added`);
+                    const res = await fetch(`https://api.rawg.io/api/games?key=${rawgApiKey}&page_size=40&search=${encodeURIComponent(query)}&search_precise=true&ordering=-added`);
                     const data = await res.json();
                     if (data.results) {
                         fetchedGames = data.results.map(g => ({
@@ -1953,9 +1947,9 @@
                 } catch (e) { console.error('RAWG Search Error:', e); }
             }
 
-            if (tmdbEnabled) {
+            if (tmdbApiKey) {
                 try {
-                    const res = await fetch(`${API_PROXY_BASE}/tmdb/search/multi?query=${encodeURIComponent(query)}`);
+                    const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${tmdbApiKey}&query=${encodeURIComponent(query)}`);
                     const data = await res.json();
                     if (data.results) {
                         fetchedMedia = data.results.filter(m => m.media_type === 'movie' || m.media_type === 'tv').map(m => ({
@@ -2009,7 +2003,7 @@
             gameRes.innerHTML = '';
 
             if (allGameResults.length === 0) {
-                gameRes.innerHTML = rawgEnabled ? '<div class="empty-state">No matching games found.</div>' : '<div class="empty-state">Game search is temporarily unavailable.</div>';
+                gameRes.innerHTML = rawgApiKey ? '<div class="empty-state">No matching games found.</div>' : '<div class="empty-state">Game search is temporarily unavailable.</div>';
                 loadMoreBtn.style.display = 'none';
                 return;
             }
@@ -2035,7 +2029,7 @@
             else if (mediaFilterType === 'show') filteredMedia = allMediaResults.filter(m => m.category === 'show');
 
             if (filteredMedia.length === 0) {
-                mediaRes.innerHTML = tmdbEnabled ? '<div class="empty-state">No matching titles found.</div>' : '<div class="empty-state">Movie/TV search is temporarily unavailable.</div>';
+                mediaRes.innerHTML = tmdbApiKey ? '<div class="empty-state">No matching titles found.</div>' : '<div class="empty-state">Movie/TV search is temporarily unavailable.</div>';
                 loadMoreBtn.style.display = 'none';
                 return;
             }
@@ -2151,9 +2145,9 @@
             if (cached) {
                 try { return JSON.parse(cached); } catch (e) { /* fall through and refetch */ }
             }
-            if (!rawgEnabled) return {};
+            if (!rawgApiKey) return {};
             try {
-                const res = await fetch(`${API_PROXY_BASE}/rawg/genres`);
+                const res = await fetch(`https://api.rawg.io/api/genres?key=${rawgApiKey}`);
                 const data = await res.json();
                 const map = {};
                 (data.results || []).forEach(g => { map[g.name] = g.slug; });
@@ -2206,7 +2200,7 @@
         }
 
         async function generateGameRecommendations() {
-            if (!rawgEnabled) return { items: [], mode: 'needsKey' };
+            if (!rawgApiKey) return { items: [], mode: 'needsKey' };
 
             const gameItems = mediaLibrary.filter(i => i.category === 'game');
             const { genreScores } = buildTasteProfile(gameItems);
@@ -2222,7 +2216,7 @@
             if (positiveGenres.length === 0) {
                 // Cold start: no positive taste signal yet, surface acclaimed/popular titles instead
                 try {
-                    const res = await fetch(`${API_PROXY_BASE}/rawg/games?page_size=20&ordering=-added&metacritic=75,100`);
+                    const res = await fetch(`https://api.rawg.io/api/games?key=${rawgApiKey}&page_size=20&ordering=-added&metacritic=75,100`);
                     const data = await res.json();
                     (data.results || []).forEach(g => {
                         const mapped = mapRawgGame(g);
@@ -2245,7 +2239,7 @@
                 const slug = genreMap[genreName];
                 if (!slug) continue;
                 try {
-                    const res = await fetch(`${API_PROXY_BASE}/rawg/games?genres=${slug}&page_size=20&ordering=-rating&metacritic=60,100`);
+                    const res = await fetch(`https://api.rawg.io/api/games?key=${rawgApiKey}&genres=${slug}&page_size=20&ordering=-rating&metacritic=60,100`);
                     const data = await res.json();
                     (data.results || []).forEach(g => {
                         const mapped = mapRawgGame(g);
@@ -2275,7 +2269,7 @@
         }
 
         async function generateMediaRecommendations() {
-            if (!tmdbEnabled) return { items: [], mode: 'needsKey' };
+            if (!tmdbApiKey) return { items: [], mode: 'needsKey' };
 
             const mediaItems = mediaLibrary.filter(i => i.category === 'movie' || i.category === 'show');
             const { genreScores, seeds } = buildTasteProfile(mediaItems);
@@ -2290,7 +2284,7 @@
 
             if (topSeeds.length === 0) {
                 try {
-                    const res = await fetch(`${API_PROXY_BASE}/tmdb/trending/all/week`);
+                    const res = await fetch(`https://api.themoviedb.org/3/trending/all/week?api_key=${tmdbApiKey}`);
                     const data = await res.json();
                     (data.results || [])
                         .filter(m => m.media_type === 'movie' || m.media_type === 'tv')
@@ -2313,7 +2307,7 @@
                 const tmdbId = seed.item.id.replace('tmdb_', '');
                 const endpointType = seed.item.category === 'show' ? 'tv' : 'movie';
                 try {
-                    const res = await fetch(`${API_PROXY_BASE}/tmdb/${endpointType}/${tmdbId}/recommendations`);
+                    const res = await fetch(`https://api.themoviedb.org/3/${endpointType}/${tmdbId}/recommendations?api_key=${tmdbApiKey}`);
                     const data = await res.json();
                     (data.results || []).slice(0, 15).forEach(m => {
                         const mapped = mapTmdbItem(m, endpointType === 'tv' ? 'show' : 'movie');
@@ -2345,7 +2339,7 @@
         function renderRecGrid(grid, result, kind) {
             grid.innerHTML = '';
             if (!result || !result.items || result.items.length === 0) {
-                const hasKey = kind === 'game' ? !!rawgEnabled : !!tmdbEnabled;
+                const hasKey = kind === 'game' ? !!rawgApiKey : !!tmdbApiKey;
                 if (!hasKey) {
                     grid.innerHTML = `<div class="empty-state">Add your ${kind === 'game' ? 'RAWG' : 'TMDB'} API key in Settings to get recommendations.</div>`;
                 } else {
@@ -2373,7 +2367,7 @@
             mGrid.innerHTML = '<div class="empty-state">Analyzing your taste in movies & shows...</div>';
             note.style.display = 'none';
 
-            if (!rawgEnabled && !tmdbEnabled) {
+            if (!rawgApiKey && !tmdbApiKey) {
                 note.style.display = 'block';
                 note.innerText = 'Add a RAWG and/or TMDB API key in Settings to enable recommendations.';
             }
